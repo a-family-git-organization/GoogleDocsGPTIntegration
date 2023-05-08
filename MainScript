@@ -7,6 +7,8 @@ function summarizeSelectedText(chunkSize, content, contentRole) {
     var elements = selection.getSelectedElements();
     var textArray = elements.map(element => element.getElement().getText().replace(/\r?\n|\r/g, ""));
     console.log(textArray);
+  }else {
+    var textArray = '実行'
   }
 
   var linesPerChunk = chunkSize;
