@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+  </head>
+  <body>
+    <form id="user-input-form">
+      <label for="chunkSize">分割する行数:</label>
+      //初期の分割行数
+      <input type="number" id="chunkSize" name="chunkSize" value="30" required>
+      <br>
+      <label for="content">命令:</label>
+      <textarea id="content" name="content" rows="20" cols="35" required>
+//初期のプロンプト
+これから会議の議事録を作成します
+以下のoutputに忠実に文章を生成してください
+output:
+1. text全体をまとめて10文字以内でテーマを付け、【】で囲む
+2. text全体から、つけたテーマに沿った重要なポイントを1文あたり15文字程度で先頭に「◯」をつけて箇条書きで抽出。最後に30文字以内で簡潔に要約し、要約の先頭に「➡」をつける
+</textarea>
+      <br>
+      <label for="contentRole">役割:</label>
+      <textarea id="contentRole" name="contentRole" rows="10" cols="35" required>
+//初期のロール
+あなたは議事録作成係です
+会議に参加していない人にもわかるように、正確かつ簡潔に議論された内容をまとめ、議事録を作成します
+意味が分かりづらかったり文字起こしの失敗と思われる部分はその旨も記述してください。
+</textarea>
+      <br>
+      <button type="button" onclick="submitForm()">処理を開始</button>
+    </form>
+    <div id="message">　</div>
+    <script>
+      function submitForm() {
+        var form = document.getElementById("user-input-form");
+        var chunkSize = form.chunkSize.value;
+        var content = form.content.value;
+        var contentRole = form.contentRole.value;
+        
+        var messageDiv = document.getElementById("message");
+        messageDiv.textContent = "お待ち下さい…";
+        
+        google.script.run
+        .withSuccessHandler(function() {
+          messageDiv.textContent = "処理が完了しました";
+          })
+          .summarizeSelectedText(chunkSize, content, contentRole);
+          }
+    　</script>
+  </body>
+</html>
