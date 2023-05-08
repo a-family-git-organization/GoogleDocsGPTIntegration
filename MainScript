@@ -1,0 +1,103 @@
+function summarizeSelectedText(chunkSize, content, contentRole) {
+  var doc = DocumentApp.getActiveDocument();
+  var selection = doc.getSelection();
+
+  // 選択範囲が存在する場合、そのテキストを取得
+  if (selection) {
+    var elements = selection.getSelectedElements();
+    var textArray = elements.map(element => element.getElement().getText().replace(/\r?\n|\r/g, ""));
+    console.log(textArray);
+  }
+
+  var linesPerChunk = chunkSize;
+  var content = content;
+  var contentRole = contentRole;
+  // テキストを指定されたチャンクサイズごとに分割
+  var chunks = splitTextIntoChunks(textArray, linesPerChunk);
+  // generateSummaryBatchを使用して、非同期処理を実行
+  var summaries = generateBatchSummaries(chunks, content, contentRole);
+  // 要約を結合し、最終的な要約を生成
+  var finalSummary = summaries.join('\n\n');
+  Logger.log('Final Summary: ' + finalSummary);
+
+  // 最終的な要約を文書の先頭に挿入
+  var body = doc.getBody();
+  var topParagraph = body.getParagraphs()[0];
+  topParagraph.insertText(0, "▼ 出力結果:\n" + finalSummary + "\n\n");
+}
+
+// テキストを指定された行数ごとにチャンクに分割する関数
+function splitTextIntoChunks(textArray, linesPerChunk) {
+  var chunks = [];
+  var currentChunk = [];
+
+  for (var i = 0; i < textArray.length; i++) {
+    var line = textArray[i];
+
+    if (currentChunk.length >= linesPerChunk) {
+      chunks.push(currentChunk);
+      currentChunk = [];
+    }
+    currentChunk.push(line);
+  }
+  if (currentChunk.length > 0) {
+    chunks.push(currentChunk);
+  }
+  console.log(chunks);
+  return chunks;
+
+}
+
+// GPT-3.5-turboモデルを使用してテキストの要約を生成する関数
+function generateBatchSummaries(textArray, content, contentRole) {
+  var apiKey = ScriptProperties.getProperty("APIKEY");
+  var model = "gpt-3.5-turbo";
+  var url = "https://api.openai.com/v1/chat/completions";
+  var batchSize = 5; // 一度に送信するリクエスト数を調整できます。
+
+  // contentPromptを作成
+  var contentPrompts = textArray.map(
+    (chunk) => content + "\ntext: " + chunk.join("\n")
+  );
+
+  var summaries = [];
+
+  // リクエストをバッチ処理
+  for (var i = 0; i < contentPrompts.length; i += batchSize) {
+    var batchPrompts = contentPrompts.slice(i, i + batchSize);
+    // リクエストオプションを作成
+    var requestOptions = batchPrompts.map((contentPrompt) => ({
+      url: url,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + apiKey,
+      },
+      payload: JSON.stringify({
+        model: model,
+        messages: [
+          {
+            role: "system",
+            content: contentRole,
+          },
+          { role: "user", content: contentPrompt },
+        ],
+        temperature: 0,
+        max_tokens: 2048,
+      }),
+    }));
+
+    // UrlFetchApp.fetchAllでリクエストを送信
+    var responses = UrlFetchApp.fetchAll(requestOptions);
+
+    var batchSummaries = responses.map((response) => {
+      var responseText = response.getContentText();
+      var json = JSON.parse(responseText);
+      return json.choices[0].message.content.trim();
+    });
+
+    summaries = summaries.concat(batchSummaries);
+  }
+
+  return summaries;
+}
